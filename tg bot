@@ -2,7 +2,7 @@ import telebot
 import random
 from telebot import types
 
-bot = telebot.TeleBot('6002085425:AAEby7cWNk18bvqpLYs6DAo6myEwppxqJ48')
+bot = telebot.TeleBot('Токен!!!!!!!!')
 
 # Create a dictionary to store user data
 users_data = {}
