@@ -1,0 +1,82 @@
+import telebot
+import random
+from telebot import types
+
+bot = telebot.TeleBot('6002085425:AAEby7cWNk18bvqpLYs6DAo6myEwppxqJ48')
+
+# Create a dictionary to store user data
+users_data = {}
+
+# Handle '/start' command
+@bot.message_handler(commands=["start"])
+def start(m):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    add_user_button = types.KeyboardButton("Добавить пользователя")
+    show_time_button = types.KeyboardButton("Просмотреть сколько осталось времени")
+    remove_user_button = types.KeyboardButton("Удалить пользователя")
+    markup.add(add_user_button, show_time_button, remove_user_button)
+    bot.send_message(m.chat.id, "Здарова хозяин, чё надо?", reply_markup=markup)
+
+# Handle 'Добавить пользователя' button
+@bot.message_handler(func=lambda message: message.text == "Добавить пользователя")
+def add_user(message):
+    user_id = message.chat.id
+    users_data.setdefault(user_id, [])
+    bot.send_message(user_id, "Введите имя пользователя:")
+    bot.register_next_step_handler(message, add_user_name)
+
+def add_user_name(message):
+    user_id = message.chat.id
+    user_data = {"name": message.text, "start_time": telebot.apihelper.time.time(), "elapsed_time": 0}
+    users_data[user_id].append(user_data)
+    bot.send_message(user_id, f"Пользователь {message.text} добавлен.")
+
+# Handle 'Просмотреть сколько осталось времени' button
+@bot.message_handler(func=lambda message: message.text == "Просмотреть сколько осталось времени")
+def show_time_handler(message):
+    user_id = message.chat.id
+    if not users_data.get(user_id):
+        bot.send_message(user_id, "Вы не добавили пользователей.")
+        return
+
+    for user_data in users_data[user_id]:
+        name = user_data.get("name")
+        start_time = user_data.get("start_time")
+        if name and start_time:
+            elapsed_time = int(telebot.apihelper.time.time() - start_time)
+            minutes, seconds = divmod(elapsed_time, 60)
+            hours, minutes = divmod(minutes, 60)
+            bot.send_message(user_id, f"Пользователь {name} провел в антикафе: {hours} часов, {minutes} минут, {seconds} секунд.")
+
+# Handle 'Удалить пользователя' button
+@bot.message_handler(func=lambda message: message.text == "Удалить пользователя")
+def remove_user(message):
+    user_id = message.chat.id
+    if not users_data.get(user_id):
+        bot.send_message(user_id, "Вы не добавили пользователей.")
+        return
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    buttons = [types.KeyboardButton(user_data.get("name")) for user_data in users_data[user_id]]
+    markup.add(*buttons)
+    bot.send_message(user_id, "Выберите пользователя, которого вы хотите удалить:", reply_markup=markup)
+    bot.register_next_step_handler(message, delete_user)
+
+def delete_user(message):
+    user_id = message.chat.id
+    user_to_delete = message.text
+    if not user_to_delete:
+        bot.send_message(user_id, "Неверное имя пользователя. Попробуйте еще раз.")
+        return
+
+    for user_data in users_data[user_id]:
+        name = user_data.get("name")
+        if name == user_to_delete:
+            users_data[user_id].remove(user_data)
+            bot.send_message(user_id, f"Пользователь {name} удален.")
+            start(message) # вызываем функцию, которая выводит кнопки пользователю
+            return
+
+    bot.send_message(user_id, "Неверное имя пользователя. Попробуйте еще раз.")
+
+bot.polling(none_stop=True)
